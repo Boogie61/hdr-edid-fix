@@ -13,7 +13,7 @@ FW_PATH=/usr/lib/firmware/edid/$NAME
 echo "==> removing kernel parameter"
 for f in /etc/default/limine /etc/default/grub /etc/kernel/cmdline; do
   [ -f "$f" ] || continue
-  sed -i "s|drm\.edid_firmware=[^ \"]*$NAME ||g" "$f"
+  sed -i "s|drm\.edid_firmware=[^ \"']*$NAME ||g" "$f"
 done
 
 echo "==> removing from initramfs config"

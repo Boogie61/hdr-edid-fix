@@ -66,37 +66,36 @@ else
 fi
 
 # ---------------------------------------------------------------- cmdline
+# Handles both quoting styles, and only claims success if the parameter is
+# really there afterwards.
 added_cmdline=0
+
+add_param() {           # $1 = file, $2 = sed expression
+  local file="$1" expr="$2"
+  if grep -q edid_firmware "$file"; then
+    echo "    already present"
+    added_cmdline=1
+    return
+  fi
+  cp -n "$file" "$file.hdr-backup" 2>/dev/null || true
+  sed -i "$expr" "$file"
+  if grep -q edid_firmware "$file"; then
+    echo "    added"
+    added_cmdline=1
+  else
+    echo "    could not edit $file automatically"
+  fi
+}
+
 if [ -f /etc/default/limine ]; then
   echo "==> limine"
-  if grep -q edid_firmware /etc/default/limine; then
-    echo "    already present"
-  else
-    cp -n /etc/default/limine /etc/default/limine.hdr-backup
-    sed -i "s|^\(KERNEL_CMDLINE\[[^]]*\]+\?=\"\)|\1$PARAM |" /etc/default/limine
-    grep -q edid_firmware /etc/default/limine && echo "    added" || { echo "    add by hand: $PARAM"; }
-  fi
-  added_cmdline=1
+  add_param /etc/default/limine "s|^\\(KERNEL_CMDLINE\\[[^]]*\\]+\\?=[\"']\\)|\\1$PARAM |"
 elif [ -f /etc/default/grub ]; then
   echo "==> grub"
-  if grep -q edid_firmware /etc/default/grub; then
-    echo "    already present"
-  else
-    cp -n /etc/default/grub /etc/default/grub.hdr-backup
-    sed -i "s|^\(GRUB_CMDLINE_LINUX_DEFAULT=\"\)|\1$PARAM |" /etc/default/grub
-    echo "    added"
-  fi
-  added_cmdline=1
+  add_param /etc/default/grub "s|^\\(GRUB_CMDLINE_LINUX_DEFAULT=[\"']\\)|\\1$PARAM |"
 elif [ -f /etc/kernel/cmdline ]; then
   echo "==> /etc/kernel/cmdline"
-  if grep -q edid_firmware /etc/kernel/cmdline; then
-    echo "    already present"
-  else
-    cp -n /etc/kernel/cmdline /etc/kernel/cmdline.hdr-backup
-    sed -i "1s|^|$PARAM |" /etc/kernel/cmdline
-    echo "    added"
-  fi
-  added_cmdline=1
+  add_param /etc/kernel/cmdline "1s|^|$PARAM |"
 fi
 
 # ---------------------------------------------------------------- regenerate
