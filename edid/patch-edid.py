@@ -144,8 +144,16 @@ def patch(edid):
     ext_count = base[126]
     if ext_count == 0:
         raise ValueError("EDID has no extension blocks, nothing to look into")
+    if ext_count >= 255:
+        raise ValueError("no room for another extension block")
 
-    extensions = bytearray(edid[128:128 + ext_count * 128])
+    expected = 128 * (1 + ext_count)
+    if len(edid) < expected:
+        raise ValueError(
+            f"EDID claims {ext_count} extension blocks but is only {len(edid)} "
+            f"bytes, expected {expected}; refusing to work from a truncated read")
+
+    extensions = bytearray(edid[128:expected])
 
     # Only look inside DisplayID extensions. A display that already has a
     # standalone CTA extension does not need this workaround.

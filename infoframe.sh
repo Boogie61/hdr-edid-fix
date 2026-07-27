@@ -20,7 +20,13 @@ fi
 
 command -v modetest >/dev/null || { echo "modetest not installed (package: libdrm)"; exit 1; }
 
-modetest -c 2>/dev/null \
+# Pin modetest to the driver behind this connector; by default it opens the
+# first DRM device, which need not be the one driving the panel.
+CARD=$(basename "$(echo /sys/class/drm/card*-"$CONNECTOR" | cut -d" " -f1)" | cut -d- -f1)
+DRIVER=$(basename "$(readlink -f "/sys/class/drm/$CARD/device/driver" 2>/dev/null)" 2>/dev/null)
+[ -n "$DRIVER" ] && [ "$DRIVER" != "." ] && MT="modetest -M $DRIVER" || MT="modetest"
+
+$MT -c 2>/dev/null \
   | awk -v c="$CONNECTOR" '/^[0-9]+\t[0-9]+\t(connected|disconnected)/{p=($4==c)} p' > /tmp/.edp.$$
 
 python3 - "$CONNECTOR" "/tmp/.edp.$$" <<'EOF'

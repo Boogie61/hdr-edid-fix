@@ -15,7 +15,13 @@ else
 fi
 [ -n "${EDID_PATH:-}" ] || { echo "no connected eDP panel found"; exit 1; }
 
-echo "connector: $CONNECTOR"
+# modetest picks the first DRM device by default, which on a multi-GPU
+# machine may not be the one driving the panel. Pin it to the right driver.
+CARD=$(echo "$EDID_PATH" | sed 's|.*/\(card[0-9]*\)-.*|\1|')
+DRIVER=$(basename "$(readlink -f "/sys/class/drm/$CARD/device/driver" 2>/dev/null)" 2>/dev/null)
+[ -n "$DRIVER" ] && [ "$DRIVER" != "." ] && MT="modetest -M $DRIVER" || MT="modetest"
+
+echo "connector: $CONNECTOR    driver: ${DRIVER:-unknown}"
 echo
 echo "1) is the kernel handing out the patched EDID?"
 SIZE=$(wc -c < "$EDID_PATH")
@@ -82,7 +88,7 @@ fi
 echo
 echo "4) what is actually being sent to the panel (only meaningful with HDR on)"
 command -v modetest >/dev/null || { echo "   modetest not installed (package: libdrm)"; exit 0; }
-modetest -c 2>/dev/null \
+$MT -c 2>/dev/null \
   | awk -v c="$CONNECTOR" '/^[0-9]+\t[0-9]+\t(connected|disconnected)/{p=($4==c)} p' \
   | awk '
       /[0-9]+ Colorspace:/     {s=1; next}
