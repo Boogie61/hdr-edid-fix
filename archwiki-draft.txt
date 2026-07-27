@@ -39,7 +39,7 @@ panel's own EDID is used. With [[mkinitcpio]], add the full path to
 {{ic|FILES<nowiki>=</nowiki>()}} in {{ic|/etc/mkinitcpio.conf}} and regenerate.}}
 
 {{Tip|A script that performs the rewrite for any affected panel, together with
-verification helpers, is available at [https://github.com/USERNAME/hdr-edid-fix hdr-edid-fix].}}
+verification helpers, is available at [https://github.com/Boogie61/hdr-edid-fix hdr-edid-fix].}}
 
 Verify after rebooting that the EDID grew by 128 bytes:
 
@@ -81,7 +81,7 @@ NOTLAR
 
 - {{Pkg|libdisplay-info}} şablonu paketin depoda olduğunu varsayıyor; değilse
   {{AUR|...}} ya da düz link olacak, kaydetmeden önce önizlemede kontrol et.
-- hdr-edid-fix linkindeki USERNAME'i repo yayınlandıktan sonra değiştir.
+- hdr-edid-fix linkindeki USERNAME'i tamamlandı.
 - ArchWiki hesabı gerekiyor ve kayıt sırasında teknik bir soru soruyor.
 - Kaydetme özetine şunu yaz:
   "Troubleshooting: HDR not detected when metadata is in a DisplayID block; GNOME washed out colors"
