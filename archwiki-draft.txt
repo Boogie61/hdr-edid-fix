@@ -1,0 +1,87 @@
+ArchWiki: https://wiki.archlinux.org/title/HDR
+Bu iki bölüm "Troubleshooting" başlığı altına, mevcut alt başlıkların arasına girer.
+MediaWiki biçimlendirmesi, olduğu gibi yapıştırılabilir.
+
+================================================================================
+
+=== HDR option missing although the display supports it ===
+
+Some displays, notably Samsung ATNA-series laptop OLED panels, advertise their
+HDR capability through a ''CTA-861 DisplayID Data Block'' nested inside a
+DisplayID 2.0 extension block (tag {{ic|0x70}}) rather than through a standalone
+CTA-861 extension block (tag {{ic|0x02}}). [https://gitlab.freedesktop.org/emersion/libdisplay-info libdisplay-info]
+does not reach data blocks in that position, so
+{{ic|di_info_get_hdr_static_metadata()}} returns nothing and every compositor
+built on it decides the display is SDR only. No HDR toggle appears, in any
+desktop environment.
+
+Compare the two decoders to confirm. {{Pkg|v4l-utils}} provides
+{{ic|edid-decode}} and {{Pkg|libdisplay-info}} provides {{ic|di-edid-decode}}:
+
+{{bc|<nowiki>
+$ edid-decode /sys/class/drm/card0-eDP-1/edid | grep -A3 'HDR Static Metadata'
+$ di-edid-decode /sys/class/drm/card0-eDP-1/edid | grep -i hdr
+</nowiki>}}
+
+If the first prints an HDR Static Metadata Data Block and the second prints
+nothing, this is the problem. See [https://gitlab.freedesktop.org/emersion/libdisplay-info/-/issues/59 libdisplay-info issue 59].
+
+As a workaround, rewrite the EDID so the same data blocks also appear in a
+standard CTA-861 extension block, and have the kernel hand that out instead. The
+original blocks are kept, so timings, DSC and adaptive sync are unaffected. Place
+the rewritten EDID in {{ic|/usr/lib/firmware/edid/}} and add to the [[kernel parameters]]:
+
+{{bc|drm.edid_firmware<nowiki>=</nowiki>eDP-1:edid/hdr-patched-edid.bin}}
+
+{{Warning|The DRM driver is normally loaded from the initramfs, so the firmware
+file has to be included there as well or {{ic|request_firmware()}} fails and the
+panel's own EDID is used. With [[mkinitcpio]], add the full path to
+{{ic|FILES<nowiki>=</nowiki>()}} in {{ic|/etc/mkinitcpio.conf}} and regenerate.}}
+
+{{Tip|A script that performs the rewrite for any affected panel, together with
+verification helpers, is available at [https://github.com/USERNAME/hdr-edid-fix hdr-edid-fix].}}
+
+Verify after rebooting that the EDID grew by 128 bytes:
+
+{{bc|<nowiki>
+$ wc -c < /sys/class/drm/card0-eDP-1/edid
+</nowiki>}}
+
+=== Colors washed out in GNOME with HDR enabled ===
+
+Distinct from the above, and only affects [[GNOME]]. When the {{ic|bt2100}}
+colour mode is enabled, mutter programs the {{ic|HDR_OUTPUT_METADATA}} connector
+property with the EOTF set to PQ but leaves every other field zero: no mastering
+display primaries, no white point, no luminance range, no MaxCLL or MaxFALL.
+Displays that perform their own tone mapping therefore have nothing to work from
+and fall back to a default curve, which shows as washed out SDR content with very
+low contrast. KWin populates these fields, which is why the same panel looks
+correct under [[KDE]].
+
+Inspect what is actually being sent with {{ic|modetest}} from {{Pkg|libdrm}},
+while HDR is enabled:
+
+{{bc|<nowiki>
+$ modetest -c | grep -A6 HDR_OUTPUT_METADATA
+</nowiki>}}
+
+A blob of the form {{ic|00000000 02 00}} followed only by zeros is this bug. See
+[https://gitlab.gnome.org/GNOME/mutter/-/issues/4386 mutter issue 4386]; a fix is
+proposed in [https://gitlab.gnome.org/GNOME/mutter/-/merge_requests/5199 merge request 5199].
+
+{{Note|On a wide gamut panel an unmanaged SDR desktop stretches sRGB content
+across the full native gamut, which looks more saturated but is incorrect. Any
+correctly colour managed mode, including HDR, looks duller in comparison. That
+effect is separate from the bug described here; GNOME's {{ic|sdr-native}} colour
+mode exists to render sRGB correctly on such panels.}}
+
+================================================================================
+
+NOTLAR
+
+- {{Pkg|libdisplay-info}} şablonu paketin depoda olduğunu varsayıyor; değilse
+  {{AUR|...}} ya da düz link olacak, kaydetmeden önce önizlemede kontrol et.
+- hdr-edid-fix linkindeki USERNAME'i repo yayınlandıktan sonra değiştir.
+- ArchWiki hesabı gerekiyor ve kayıt sırasında teknik bir soru soruyor.
+- Kaydetme özetine şunu yaz:
+  "Troubleshooting: HDR not detected when metadata is in a DisplayID block; GNOME washed out colors"
