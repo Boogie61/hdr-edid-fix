@@ -21,11 +21,11 @@ Needs ffmpeg with libx265.
     ./make-pattern.py            # writes hdr-test.mp4
 """
 
+import os
 import struct
 import subprocess
 import sys
 import tempfile
-import os
 
 W, H = 1920, 1080
 SECONDS = 15
@@ -82,6 +82,7 @@ def main():
         "L(11070000,7):max-cll=1107,497:repeat-headers=1:info=0"
     )
 
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'hdr-test.mp4')
     hevc = raw + '.hevc'
     print("encoding...")
     subprocess.run([
@@ -99,14 +100,14 @@ def main():
         '-r', '1', '-i', hevc, '-c', 'copy', '-video_track_timescale', '1000',
         '-color_primaries', 'bt2020', '-color_trc', 'smpte2084',
         '-colorspace', 'bt2020nc', '-color_range', 'tv',
-        'hdr-test.mp4',
+        out,
     ], check=True)
 
     os.unlink(raw)
     os.unlink(hevc)
-    print("wrote hdr-test.mp4")
+    print("wrote " + out)
     print()
-    print("play with:  mpv --vo=gpu-next --gpu-api=vulkan --loop=inf --fullscreen hdr-test.mp4")
+    print("play with:  mpv --vo=gpu-next --gpu-api=vulkan --loop=inf --fullscreen " + out)
 
 
 if __name__ == '__main__':

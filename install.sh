@@ -14,6 +14,7 @@ NAME=hdr-patched-edid.bin
 FW_PATH="$FW_DIR/$NAME"
 
 [ "$EUID" -eq 0 ] || { echo "run with sudo: sudo ./install.sh"; exit 1; }
+command -v python3 >/dev/null || { echo "python3 is required"; exit 1; }
 cd "$(dirname "$0")"
 
 # ---------------------------------------------------------------- connector
