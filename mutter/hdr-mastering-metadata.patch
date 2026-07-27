@@ -1,0 +1,69 @@
+diff --git a/src/backends/meta-output.c b/src/backends/meta-output.c
+index f9cd01a..494ac8a 100644
+--- a/src/backends/meta-output.c
++++ b/src/backends/meta-output.c
+@@ -548,11 +548,59 @@ meta_output_get_color_metadata (MetaOutput            *output,
+       *colorspace = META_OUTPUT_COLORSPACE_DEFAULT;
+       break;
+     case META_COLOR_MODE_BT2100:
+-      *hdr_metadata = (MetaOutputHdrMetadata) {
+-        .active = TRUE,
+-        .eotf = META_OUTPUT_HDR_METADATA_EOTF_PQ,
+-      };
+-      *colorspace = META_OUTPUT_COLORSPACE_BT2020;
++      {
++        const MetaOutputInfo *output_info = meta_output_get_info (output);
++        MetaEdidInfo *edid_info = output_info ? output_info->edid_info : NULL;
++
++        *hdr_metadata = (MetaOutputHdrMetadata) {
++          .active = TRUE,
++          .eotf = META_OUTPUT_HDR_METADATA_EOTF_PQ,
++        };
++
++        /* Describe the mastering display to the sink. Without this the
++         * infoframe carries only the EOTF and every other field stays zero,
++         * which leaves the display tone mapping blind. */
++        if (edid_info)
++          {
++            const struct di_color_primaries *primaries =
++              &edid_info->default_color_primaries;
++            const struct di_hdr_static_metadata *hdr =
++              &edid_info->hdr_static_metadata;
++            double max_luminance;
++            int i;
++
++            if (primaries->has_primaries)
++              {
++                for (i = 0; i < 3; i++)
++                  {
++                    hdr_metadata->mastering_display_primaries[i].x =
++                      primaries->primary[i].x;
++                    hdr_metadata->mastering_display_primaries[i].y =
++                      primaries->primary[i].y;
++                  }
++              }
++
++            if (primaries->has_default_white_point)
++              {
++                hdr_metadata->mastering_display_white_point.x =
++                  primaries->default_white.x;
++                hdr_metadata->mastering_display_white_point.y =
++                  primaries->default_white.y;
++              }
++
++            max_luminance = hdr->desired_content_max_frame_avg_luminance;
++            if (max_luminance <= 0.0)
++              max_luminance = hdr->desired_content_max_luminance;
++
++            hdr_metadata->mastering_display_max_luminance = max_luminance;
++            hdr_metadata->mastering_display_min_luminance =
++              hdr->desired_content_min_luminance;
++            hdr_metadata->max_cll = max_luminance;
++            hdr_metadata->max_fall = max_luminance;
++          }
++
++        *colorspace = META_OUTPUT_COLORSPACE_BT2020;
++      }
+       break;
+     }
+ }
