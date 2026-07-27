@@ -11,7 +11,7 @@ if [ -z "$CONNECTOR" ]; then
     EDID_PATH="$c/edid"; CONNECTOR="${c##*/}"; CONNECTOR="${CONNECTOR#card*-}"; break
   done
 else
-  EDID_PATH=$(echo /sys/class/drm/card*-"$CONNECTOR"/edid)
+  EDID_PATH=$(ls -1 /sys/class/drm/card*-"$CONNECTOR"/edid 2>/dev/null | head -1)
 fi
 [ -n "${EDID_PATH:-}" ] || { echo "no connected eDP panel found"; exit 1; }
 

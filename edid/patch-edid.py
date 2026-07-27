@@ -45,6 +45,33 @@ def checksum(block):
     return (-sum(block[:127])) & 0xFF
 
 
+def plausible(block, ext_tag):
+    """
+    Reject byte sequences that merely look like a data block header. Scanning
+    raw bytes can hit a false positive inside timing data, and copying garbage
+    into the CTA block would make libdisplay-info report nonsense.
+    """
+    length = len(block) - 1
+    if ext_tag == HDR_STATIC_METADATA_EXT_TAG:
+        # CTA-861.3 3.2.1: ext tag, EOTF, descriptor, then 0 to 3 luminance bytes
+        if not 3 <= length <= 6:
+            return False
+        eotf, descriptor = block[2], block[3]
+        if eotf & 0xF0 or eotf == 0:      # bits 4-7 reserved, at least one EOTF set
+            return False
+        if descriptor & 0xFE:             # only "static metadata type 1" is defined
+            return False
+        return True
+    if ext_tag == COLORIMETRY_EXT_TAG:
+        # ext tag plus two flag bytes; low nibble of the second is reserved
+        if length != 3:
+            return False
+        if block[3] & 0x0F:
+            return False
+        return True
+    return True
+
+
 def find_data_block(blocks, ext_tag):
     """
     Scan raw extension bytes for a CTA-861 data block that uses the extended
@@ -61,7 +88,9 @@ def find_data_block(blocks, ext_tag):
         length = header & 0x1F
         if tag_code == 7 and length >= 1 and i + 1 + length <= n:
             if blocks[i + 1] == ext_tag:
-                return bytes(blocks[i:i + 1 + length])
+                candidate = bytes(blocks[i:i + 1 + length])
+                if plausible(candidate, ext_tag):
+                    return candidate
         i += 1
     return None
 

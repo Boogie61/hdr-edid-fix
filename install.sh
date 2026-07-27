@@ -33,7 +33,9 @@ echo "==> connector: $CONNECTOR"
 
 # ---------------------------------------------------------------- build EDID
 echo "==> generating patched EDID"
-python3 edid/patch-edid.py "/sys/class/drm/card"*"-$CONNECTOR/edid" /tmp/$NAME
+EDID_PATH=$(ls -1 /sys/class/drm/card*-"$CONNECTOR"/edid 2>/dev/null | head -1)
+[ -n "$EDID_PATH" ] || { echo "cannot find EDID for $CONNECTOR"; exit 1; }
+python3 edid/patch-edid.py "$EDID_PATH" /tmp/$NAME
 install -Dm644 /tmp/$NAME "$FW_PATH"
 rm -f /tmp/$NAME
 echo "    installed $FW_PATH"
