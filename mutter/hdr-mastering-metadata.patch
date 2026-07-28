@@ -1,8 +1,16 @@
 diff --git a/src/backends/meta-output.c b/src/backends/meta-output.c
-index f9cd01a..494ac8a 100644
+index f9cd01a..e3b26d2 100644
 --- a/src/backends/meta-output.c
 +++ b/src/backends/meta-output.c
-@@ -548,11 +548,59 @@ meta_output_get_color_metadata (MetaOutput            *output,
+@@ -22,6 +22,7 @@
+ #include "backends/edid.h"
+ #include "backends/meta-crtc.h"
+ #include "backends/meta-monitor-manager-private.h"
++#include "clutter/clutter-mutter.h"
+ 
+ enum
+ {
+@@ -548,11 +549,36 @@ meta_output_get_color_metadata (MetaOutput            *output,
        *colorspace = META_OUTPUT_COLORSPACE_DEFAULT;
        break;
      case META_COLOR_MODE_BT2100:
@@ -12,56 +20,33 @@ index f9cd01a..494ac8a 100644
 -      };
 -      *colorspace = META_OUTPUT_COLORSPACE_BT2020;
 +      {
-+        const MetaOutputInfo *output_info = meta_output_get_info (output);
-+        MetaEdidInfo *edid_info = output_info ? output_info->edid_info : NULL;
++        ClutterEOTF eotf = {
++          .type = CLUTTER_EOTF_TYPE_NAMED,
++          .tf_name = CLUTTER_TRANSFER_FUNCTION_PQ,
++        };
++        const ClutterPrimaries *primaries =
++          clutter_colorspace_to_primaries (CLUTTER_COLORSPACE_BT2020);
++        const ClutterLuminance *luminance =
++          clutter_eotf_get_default_luminance (eotf);
 +
++        /* Some sinks tone map differently when the mastering display is
++         * left undescribed, so fill in the volume the frames are produced
++         * in. MaxCLL and MaxFALL are unknown for a composited scene. */
 +        *hdr_metadata = (MetaOutputHdrMetadata) {
 +          .active = TRUE,
 +          .eotf = META_OUTPUT_HDR_METADATA_EOTF_PQ,
++          .mastering_display_primaries = {
++            { .x = primaries->r_x, .y = primaries->r_y },
++            { .x = primaries->g_x, .y = primaries->g_y },
++            { .x = primaries->b_x, .y = primaries->b_y },
++          },
++          .mastering_display_white_point = {
++            .x = primaries->w_x,
++            .y = primaries->w_y,
++          },
++          .mastering_display_min_luminance = luminance->min,
++          .mastering_display_max_luminance = luminance->mastering_max,
 +        };
-+
-+        /* Describe the mastering display to the sink. Without this the
-+         * infoframe carries only the EOTF and every other field stays zero,
-+         * which leaves the display tone mapping blind. */
-+        if (edid_info)
-+          {
-+            const struct di_color_primaries *primaries =
-+              &edid_info->default_color_primaries;
-+            const struct di_hdr_static_metadata *hdr =
-+              &edid_info->hdr_static_metadata;
-+            double max_luminance;
-+            int i;
-+
-+            if (primaries->has_primaries)
-+              {
-+                for (i = 0; i < 3; i++)
-+                  {
-+                    hdr_metadata->mastering_display_primaries[i].x =
-+                      primaries->primary[i].x;
-+                    hdr_metadata->mastering_display_primaries[i].y =
-+                      primaries->primary[i].y;
-+                  }
-+              }
-+
-+            if (primaries->has_default_white_point)
-+              {
-+                hdr_metadata->mastering_display_white_point.x =
-+                  primaries->default_white.x;
-+                hdr_metadata->mastering_display_white_point.y =
-+                  primaries->default_white.y;
-+              }
-+
-+            max_luminance = hdr->desired_content_max_frame_avg_luminance;
-+            if (max_luminance <= 0.0)
-+              max_luminance = hdr->desired_content_max_luminance;
-+
-+            hdr_metadata->mastering_display_max_luminance = max_luminance;
-+            hdr_metadata->mastering_display_min_luminance =
-+              hdr->desired_content_min_luminance;
-+            hdr_metadata->max_cll = max_luminance;
-+            hdr_metadata->max_fall = max_luminance;
-+          }
-+
 +        *colorspace = META_OUTPUT_COLORSPACE_BT2020;
 +      }
        break;

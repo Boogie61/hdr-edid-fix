@@ -50,8 +50,9 @@ point, no luminance range, no MaxCLL or MaxFALL. Displays that tone map on their
 own get no information to work with and fall back to a default curve. KWin fills
 these fields in, which is why the same panel looks right under KDE.
 
-Reported as [mutter#4386](https://gitlab.gnome.org/GNOME/mutter/-/issues/4386),
+Reported as [mutter#4937](https://gitlab.gnome.org/GNOME/mutter/-/issues/4937),
 fix proposed in [mutter!5199](https://gitlab.gnome.org/GNOME/mutter/-/merge_requests/5199).
+Most sinks are unaffected by the missing metadata; this panel is not one of them.
 
 ## Which fix do you need
 
@@ -102,8 +103,8 @@ that boot.
 ## Fixing problem 2 (GNOME only)
 
 Until [!5199](https://gitlab.gnome.org/GNOME/mutter/-/merge_requests/5199) lands
-you need a patched mutter. `mutter/hdr-mastering-metadata.patch` applies to
-mutter 50.x. On Arch:
+you need a patched mutter. `mutter/hdr-mastering-metadata.patch` is the current
+state of that merge request and applies to mutter 50.x. On Arch:
 
 ```sh
 git clone https://gitlab.archlinux.org/archlinux/packaging/packages/mutter.git
