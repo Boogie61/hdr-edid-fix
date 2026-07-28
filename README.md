@@ -2,7 +2,11 @@
 
 If your laptop has an HDR capable OLED panel, HDR works on Windows, and on Linux
 the HDR switch simply is not there — in GNOME, in KDE, in anything — this is
-probably why, and this repo fixes it.
+probably why.
+
+The underlying bug is fixed upstream in libdisplay-info 0.4.0. If your distro
+already ships that, you need nothing from here. Distros that still ship 0.3.0 do
+hit it, and the workaround below covers that gap.
 
 Confirmed on a Samsung `ATNA60HU06-0` (ASUS ROG Zephyrus G16, 2560x1600 240 Hz
 OLED, Intel Panther Lake, `xe` driver). Very likely applies to other Samsung
@@ -17,11 +21,26 @@ They are independent and you may hit either or both.
 Most displays advertise HDR through an HDR Static Metadata Data Block inside a
 CTA-861 extension block (tag `0x02`). This panel puts it inside a *CTA-861
 DisplayID Data Block*, nested in a DisplayID 2.0 extension block (tag `0x70`).
-`libdisplay-info` does not reach that, so `di_info_get_hdr_static_metadata()`
-returns nothing and every compositor built on it concludes the display is SDR
-only. No HDR switch appears anywhere.
+`libdisplay-info` only learned to read that location in **0.4.0**, released
+2026-07-23. With 0.3.0, `di_info_get_hdr_static_metadata()` returns nothing and
+every compositor built on it concludes the display is SDR only. No HDR switch
+appears anywhere.
 
-Reported as [libdisplay-info#59](https://gitlab.freedesktop.org/emersion/libdisplay-info/-/issues/59).
+Check what you have before doing anything else:
+
+```sh
+pacman -Q libdisplay-info      # or your distro's equivalent
+```
+
+**If it is 0.4.0 or newer, this half of the problem does not apply to you.**
+Arch and CachyOS still shipped 0.3.0 at the time of writing, which is why the
+workaround below exists. Once the package is updated it becomes unnecessary, and
+you should run `./uninstall.sh`.
+
+Filed as [libdisplay-info#59](https://gitlab.freedesktop.org/emersion/libdisplay-info/-/issues/59)
+and closed: the fix had already landed upstream in
+[!202](https://gitlab.freedesktop.org/emersion/libdisplay-info/-/merge_requests/202)
+before I reported it. My mistake, I tested the distro package instead of git.
 
 **2. On GNOME, HDR turns on but everything looks washed out.**
 
@@ -42,6 +61,8 @@ fix proposed in [mutter!5199](https://gitlab.gnome.org/GNOME/mutter/-/merge_requ
 | GNOME / mutter | yes | yes |
 
 ## Fixing problem 1
+
+Only needed while your distro still ships libdisplay-info 0.3.0.
 
 `patch-edid.py` reads your panel's EDID, finds the Colorimetry and HDR Static
 Metadata data blocks inside the DisplayID extension, copies them verbatim into a
@@ -137,8 +158,8 @@ confuse the two.
 `python3`, `ffmpeg` with libx265 for regenerating the test pattern, `libdrm` for
 `modetest`, and `edid-decode` from v4l-utils if you want to inspect EDIDs by
 hand. `di-edid-decode` ships with libdisplay-info and is useful for showing the
-difference: it prints nothing for the DisplayID blocks that `edid-decode` parses
-fine.
+difference on 0.3.0: it prints nothing for the DisplayID blocks that
+`edid-decode` parses fine. On 0.4.0 both agree.
 
 ## Licence
 
